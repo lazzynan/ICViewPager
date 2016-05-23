@@ -19,6 +19,7 @@
  * ViewPagerOptionCenterCurrentTab: 1.0: YES, 0.0: NO, defines if tabs should be centered, with the given tabWidth. Defaults to NO
  * ViewPagerOptionFixFormerTabsPositions: 1.0: YES, 0.0: NO, defines if the active tab should be placed margined by the offset amount to the left. Effects only the former tabs. If set 1.0 (YES), first tab will be placed at the same position with the second one, leaving space before itself. Defaults to NO
  * ViewPagerOptionFixLatterTabsPositions: 1.0: YES, 0.0: NO, like ViewPagerOptionFixFormerTabsPositions, but effects the latter tabs, making them leave space after themselves. Defaults to NO
+ * ViewPagerOptionIndicatorHeight: The height of Indicator Stoke. Defaults to 2.0
  */
 typedef NS_ENUM(NSUInteger, ViewPagerOption) {
     ViewPagerOptionTabHeight,
@@ -28,7 +29,8 @@ typedef NS_ENUM(NSUInteger, ViewPagerOption) {
     ViewPagerOptionStartFromSecondTab,
     ViewPagerOptionCenterCurrentTab,
     ViewPagerOptionFixFormerTabsPositions,
-    ViewPagerOptionFixLatterTabsPositions
+    ViewPagerOptionFixLatterTabsPositions,
+    ViewPagerOptionIndicatorHeight,
 };
 
 /**

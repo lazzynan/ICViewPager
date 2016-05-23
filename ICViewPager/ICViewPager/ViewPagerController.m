@@ -62,6 +62,7 @@
 @interface TabView : UIView
 @property (nonatomic, getter = isSelected) BOOL selected;
 @property (nonatomic) UIColor *indicatorColor;
+@property (nonatomic) CGFloat indicatorHeight;
 @end
 
 @implementation TabView
@@ -74,7 +75,10 @@
 }
 - (void)setSelected:(BOOL)selected {
     _selected = selected;
-    // Update view as state changed
+    if (self.subviews.count > 0) {
+        UIView *firstChild = [self.subviews firstObject];
+        [firstChild setValue:@(selected) forKey:@"highlighted"];
+    }
     [self setNeedsDisplay];
 }
 - (void)drawRect:(CGRect)rect {
@@ -105,7 +109,7 @@
         // Draw the indicator
         [bezierPath moveToPoint:CGPointMake(0.0, CGRectGetHeight(rect) - 1.0)];
         [bezierPath addLineToPoint:CGPointMake(CGRectGetWidth(rect), CGRectGetHeight(rect) - 1.0)];
-        [bezierPath setLineWidth:5.0];
+        [bezierPath setLineWidth:self.indicatorHeight];
         [self.indicatorColor setStroke];
         [bezierPath stroke];
     }
@@ -135,6 +139,7 @@
 @property (nonatomic) NSNumber *centerCurrentTab;
 @property (nonatomic) NSNumber *fixFormerTabsPositions;
 @property (nonatomic) NSNumber *fixLatterTabsPositions;
+@property (nonatomic) NSNumber *tabIndicatorHeight;
 
 @property (nonatomic) NSUInteger tabCount;
 @property (nonatomic) NSUInteger activeTabIndex;
@@ -203,12 +208,12 @@
 - (void)layoutSubviews {
     
     CGFloat topLayoutGuide = 0.0;
-    if (IOS_VERSION_7) {
-        topLayoutGuide = 20.0;
-        if (self.navigationController && !self.navigationController.navigationBarHidden) {
-            topLayoutGuide += self.navigationController.navigationBar.frame.size.height;
-        }
-    }
+//    if (IOS_VERSION_7) {
+//        topLayoutGuide = 20.0;
+//        if (self.navigationController && !self.navigationController.navigationBarHidden) {
+//            topLayoutGuide += self.navigationController.navigationBar.frame.size.height;
+//        }
+//    }
     
     CGRect frame = self.tabsView.frame;
     frame.origin.x = 0.0;
@@ -516,6 +521,17 @@
     return _fixLatterTabsPositions;
 }
 
+- (NSNumber *)tabIndicatorHeight {
+    if (!_tabIndicatorHeight) {
+        CGFloat value = 2.0f;
+        if ([self.delegate respondsToSelector:@selector(viewPager:valueForOption:withDefault:)]) {
+            value = [self.delegate viewPager:self valueForOption:ViewPagerOptionIndicatorHeight withDefault:value];
+            self.tabIndicatorHeight = [NSNumber numberWithFloat:value];
+        }
+    }
+    return _tabIndicatorHeight;
+}
+
 - (UIColor *)indicatorColor {
     
     if (!_indicatorColor) {
@@ -564,6 +580,7 @@
     _centerCurrentTab = nil;
     _fixFormerTabsPositions = nil;
     _fixLatterTabsPositions = nil;
+    _tabIndicatorHeight = nil;
     
     // Empty all colors
     _indicatorColor = nil;
@@ -622,6 +639,14 @@
     self.fixFormerTabsPositions = [NSNumber numberWithFloat:[self.delegate viewPager:self valueForOption:ViewPagerOptionFixFormerTabsPositions withDefault:kFixFormerTabsPositions]];
     self.fixLatterTabsPositions = [NSNumber numberWithFloat:[self.delegate viewPager:self valueForOption:ViewPagerOptionFixLatterTabsPositions withDefault:kFixLatterTabsPositions]];
     
+    CGFloat indicatorHeight = [self.delegate viewPager:self valueForOption:ViewPagerOptionIndicatorHeight withDefault:2.f];
+    if ([self.tabIndicatorHeight floatValue] != indicatorHeight) {
+        self.tabIndicatorHeight = [NSNumber numberWithFloat:indicatorHeight];
+        [self.tabs enumerateObjectsUsingBlock:^(TabView *tabView, NSUInteger index, BOOL *stop) {
+            tabView.indicatorHeight = indicatorHeight;
+        }];
+    }
+    
     // We should update contentSize property of our tabsView, so we should recalculate it with the new values
     CGFloat contentSizeWidth = 0;
     
@@ -636,6 +661,8 @@
         }
     }
     
+    BOOL useTabSelfWidth = [self.tabWidth floatValue] <= 4 && ![self.fixFormerTabsPositions boolValue];
+    
     // Update every tab's frame
     for (NSUInteger i = 0; i < self.tabCount; i++) {
         
@@ -643,7 +670,9 @@
         
         CGRect frame = tabView.frame;
         frame.origin.x = contentSizeWidth;
-        frame.size.width = [self.tabWidth floatValue];
+        if (!useTabSelfWidth) {
+            frame.size.width = [self.tabWidth floatValue];
+        }
         tabView.frame = frame;
         
         contentSizeWidth += CGRectGetWidth(tabView.frame);
@@ -829,13 +858,16 @@
         }
     }
     
+    BOOL useTabSelfWidth = [self.tabWidth floatValue] <= 4 && ![self.fixFormerTabsPositions boolValue];
     for (NSUInteger i = 0; i < self.tabCount; i++) {
         
         UIView *tabView = [self tabViewAtIndex:i];
         
         CGRect frame = tabView.frame;
         frame.origin.x = contentSizeWidth;
-        frame.size.width = [self.tabWidth floatValue];
+        if (!useTabSelfWidth) {
+            frame.size.width = [self.tabWidth floatValue];
+        }
         tabView.frame = frame;
         
         [self.tabsView addSubview:tabView];
@@ -894,11 +926,17 @@
         UIView *tabViewContent = [self.dataSource viewPager:self viewForTabAtIndex:index];
         tabViewContent.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
         
+        CGFloat tabWidth = [self.tabWidth floatValue];
+        if (tabWidth <= 4 && ![self.fixLatterTabsPositions boolValue]) {
+            tabWidth = CGRectGetWidth(tabViewContent.frame);
+        }
+        
         // Create TabView and subview the content
-        TabView *tabView = [[TabView alloc] initWithFrame:CGRectMake(0.0, 0.0, [self.tabWidth floatValue], [self.tabHeight floatValue])];
+        TabView *tabView = [[TabView alloc] initWithFrame:CGRectMake(0.0, 0.0, tabWidth, [self.tabHeight floatValue])];
         [tabView addSubview:tabViewContent];
         [tabView setClipsToBounds:YES];
         [tabView setIndicatorColor:self.indicatorColor];
+        [tabView setIndicatorHeight:[self.tabIndicatorHeight floatValue]];
         
         tabViewContent.center = tabView.center;
         
